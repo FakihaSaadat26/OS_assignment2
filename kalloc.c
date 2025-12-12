@@ -15,12 +15,15 @@ extern char end[]; // first address after kernel loaded from ELF file
 
 struct run {
   struct run *next;
+  struct run *prev; // for LRU
 };
 
 struct {
   struct spinlock lock;
   int use_lock;
   struct run *freelist;
+  struct run *lru_head; // Most recently used
+  struct run *lru_tail; // Least recently used
 } kmem;
 
 // Initialization happens in two phases.
@@ -71,7 +74,13 @@ kfree(char *v)
     acquire(&kmem.lock);
   r = (struct run*)v;
   r->next = kmem.freelist;
+  r->prev = 0;
   kmem.freelist = r;
+  // Add to LRU head
+  r->next = kmem.lru_head;
+  if (kmem.lru_head) kmem.lru_head->prev = r;
+  kmem.lru_head = r;
+  if (!kmem.lru_tail) kmem.lru_tail = r;
   if(kmem.use_lock)
     release(&kmem.lock);
 }
@@ -87,8 +96,26 @@ kalloc(void)
   if(kmem.use_lock)
     acquire(&kmem.lock);
   r = kmem.freelist;
-  if(r)
+  if(r) {
     kmem.freelist = r->next;
+    // Remove from LRU list
+    if (r->prev) r->prev->next = r->next;
+    if (r->next) r->next->prev = r->prev;
+    if (kmem.lru_head == r) kmem.lru_head = r->next;
+    if (kmem.lru_tail == r) kmem.lru_tail = r->prev;
+    r->next = r->prev = 0;
+  } else if (kmem.lru_tail) {
+    // Evict LRU page
+    r = kmem.lru_tail;
+    if (r->prev) r->prev->next = 0;
+    kmem.lru_tail = r->prev;
+    if (kmem.lru_head == r) kmem.lru_head = 0;
+    // Remove from freelist if present
+    struct run **pp = &kmem.freelist;
+    while (*pp && *pp != r) pp = &(*pp)->next;
+    if (*pp == r) *pp = r->next;
+    r->next = r->prev = 0;
+  }
   if(kmem.use_lock)
     release(&kmem.lock);
   return (char*)r;

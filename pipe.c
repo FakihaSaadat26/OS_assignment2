@@ -17,6 +17,7 @@ struct pipe {
   uint nwrite;    // number of bytes written
   int readopen;   // read fd is still open
   int writeopen;  // write fd is still open
+  int owner_uid;  // UID of creator
 };
 
 int
@@ -34,6 +35,7 @@ pipealloc(struct file **f0, struct file **f1)
   p->writeopen = 1;
   p->nwrite = 0;
   p->nread = 0;
+  p->owner_uid = myproc()->uid;
   initlock(&p->lock, "pipe");
   (*f0)->type = FD_PIPE;
   (*f0)->readable = 1;
@@ -81,6 +83,10 @@ pipewrite(struct pipe *p, char *addr, int n)
   int i;
 
   acquire(&p->lock);
+  if (myproc()->uid != p->owner_uid && myproc()->uid != 0) {
+    release(&p->lock);
+    return -1;
+  }
   for(i = 0; i < n; i++){
     while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
       if(p->readopen == 0 || myproc()->killed){
@@ -103,6 +109,10 @@ piperead(struct pipe *p, char *addr, int n)
   int i;
 
   acquire(&p->lock);
+  if (myproc()->uid != p->owner_uid && myproc()->uid != 0) {
+    release(&p->lock);
+    return -1;
+  }
   while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
     if(myproc()->killed){
       release(&p->lock);

@@ -24,6 +24,8 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 int setpriority(int);
+int login(const char *username, const char *password);
+int encrypt_file(const char *path, int key);
 
 // ulib.c
 int stat(const char*, struct stat*);

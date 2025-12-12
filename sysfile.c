@@ -442,3 +442,39 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+int
+sys_encrypt_file(void)
+{
+  char *path;
+  int key;
+  struct inode *ip;
+  struct proc *curproc = myproc();
+  if(argstr(0, &path) < 0 || argint(1, &key) < 0)
+    return -1;
+  begin_op();
+  if((ip = namei(path)) == 0){
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  // Only owner or root can encrypt/decrypt
+  if (ip->owner_uid != curproc->uid && curproc->uid != 0) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+  // Simple XOR encryption for demonstration
+  char buf[512];
+  int off = 0, n;
+  while (off < ip->size) {
+    n = (ip->size - off > 512) ? 512 : ip->size - off;
+    if (readi(ip, buf, off, n) != n) break;
+    for (int i = 0; i < n; i++) buf[i] ^= key;
+    if (writei(ip, buf, off, n) != n) break;
+    off += n;
+  }
+  iunlockput(ip);
+  end_op();
+  return 0;
+}

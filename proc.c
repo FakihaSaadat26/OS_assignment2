@@ -89,6 +89,8 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->priority = 5;  // Default priority (medium)
+  p->uid = 0;       // Default to root user
+  p->gid = 0;       // Default to root group
 
   release(&ptable.lock);
 
@@ -139,6 +141,9 @@ userinit(void)
   p->tf->eflags = FL_IF;
   p->tf->esp = PGSIZE;
   p->tf->eip = 0;  // beginning of initcode.S
+
+  p->uid = 0; // root user
+  p->gid = 0; // root group
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
@@ -201,6 +206,8 @@ fork(void)
   np->parent = curproc;
   *np->tf = *curproc->tf;
   np->priority = curproc->priority;  // Inherit priority from parent
+  np->uid = curproc->uid;            // Inherit uid from parent
+  np->gid = curproc->gid;            // Inherit gid from parent
 
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;

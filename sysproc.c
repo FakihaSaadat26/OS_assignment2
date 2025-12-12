@@ -33,6 +33,8 @@ sys_kill(void)
 
   if(argint(0, &pid) < 0)
     return -1;
+  if(myproc()->uid == -1) // not authenticated
+    return -1;
   return kill(pid);
 }
 
@@ -98,6 +100,31 @@ sys_setpriority(void)
 
   if(argint(0, &priority) < 0)
     return -1;
+  if(myproc()->uid == -1) // not authenticated
+    return -1;
   
   return setpriority(priority);
+}
+
+// User login system call
+int
+sys_login(void)
+{
+  char *username;
+  char *password;
+  if(argstr(0, &username) < 0 || argstr(1, &password) < 0)
+    return -1;
+
+  // Simple hardcoded authentication for demonstration
+  // In a real OS, this would check a user database
+  if(strcmp(username, "root") == 0 && strcmp(password, "rootpass") == 0) {
+    myproc()->uid = 0;
+    myproc()->gid = 0;
+    return 0; // success
+  } else if(strcmp(username, "user") == 0 && strcmp(password, "userpass") == 0) {
+    myproc()->uid = 1000;
+    myproc()->gid = 1000;
+    return 0; // success
+  }
+  return -1; // authentication failed
 }

@@ -47,6 +47,9 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int priority;                // Process priority (higher = higher priority)
+  int uid;                     // User ID for authentication
+  int gid;                     // Group ID for access control
+  int cpu_ticks;               // CPU ticks used (for quota)
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)

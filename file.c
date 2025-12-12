@@ -103,6 +103,9 @@ fileread(struct file *f, char *addr, int n)
   if(f->type == FD_PIPE)
     return piperead(f->pipe, addr, n);
   if(f->type == FD_INODE){
+    // Access control: only owner or root can read
+    if(myproc()->uid != 0 && myproc()->uid != f->ip->owner_uid)
+      return -1;
     ilock(f->ip);
     if((r = readi(f->ip, addr, f->off, n)) > 0)
       f->off += r;
@@ -124,6 +127,9 @@ filewrite(struct file *f, char *addr, int n)
   if(f->type == FD_PIPE)
     return pipewrite(f->pipe, addr, n);
   if(f->type == FD_INODE){
+    // Access control: only owner or root can write
+    if(myproc()->uid != 0 && myproc()->uid != f->ip->owner_uid)
+      return -1;
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,
